@@ -453,22 +453,26 @@ SString CInstallManager::_ChangeToAdmin()
 {
     if (!IsUserAdmin())
     {
-        MessageBoxUTF8(
-            NULL, SString(_("MTA:SA needs Administrator access for the following task:\n\n  '%s'\n\nPlease confirm in the next window."), *m_strAdminReason),
-            "Multi Theft Auto: San Andreas", MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
-        SetIsBlockingUserProcess();
-        ReleaseSingleInstanceMutex();
-        if (ShellExecuteBlocking("runas", GetLauncherPathFilename(), GetSequencerSnapshot()))
+        // Portable mode: elevation requests are disabled; report the failure instead
+        if (!IsPortableMode())
         {
-            // Will return here once admin process has finished
+            MessageBoxUTF8(
+                NULL, SString(_("MTA:SA needs Administrator access for the following task:\n\n  '%s'\n\nPlease confirm in the next window."), *m_strAdminReason),
+                "Multi Theft Auto: San Andreas", MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
+            SetIsBlockingUserProcess();
+            ReleaseSingleInstanceMutex();
+            if (ShellExecuteBlocking("runas", GetLauncherPathFilename(), GetSequencerSnapshot()))
+            {
+                // Will return here once admin process has finished
+                CreateSingleInstanceMutex();
+                UpdateSettingsForReportLog();
+                RestoreSequencerFromSnapshot(ReceiveStringFromAdminProcess());
+                ClearIsBlockingUserProcess();
+                return "ok";  // This will appear as the result for _ChangeFromAdmin
+            }
             CreateSingleInstanceMutex();
-            UpdateSettingsForReportLog();
-            RestoreSequencerFromSnapshot(ReceiveStringFromAdminProcess());
             ClearIsBlockingUserProcess();
-            return "ok";  // This will appear as the result for _ChangeFromAdmin
         }
-        CreateSingleInstanceMutex();
-        ClearIsBlockingUserProcess();
         MessageBoxUTF8(NULL, SString(_("MTA:SA could not complete the following task:\n\n  '%s'\n"), *m_strAdminReason),
                        "Multi Theft Auto: San Andreas" + _E("CL01"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
     }
@@ -1728,8 +1732,12 @@ SString CInstallManager::_ProcessLangFileChecks()
         {
             if (!FileCopy(strSrcFile, strPathFilename))
             {
-                m_strAdminReason = "Update language files";
-                return "fail";
+                // Portable mode: the GTA directory may be read-only; continue without the language fix
+                if (!IsPortableMode())
+                {
+                    m_strAdminReason = "Update language files";
+                    return "fail";
+                }
             }
         }
     }
@@ -1772,6 +1780,12 @@ SString CInstallManager::_ProcessServiceChecks()
 //////////////////////////////////////////////////////////
 SString CInstallManager::_ProcessAppCompatChecks()
 {
+    // Portable mode: the AppCompatFlags/GameUX/loader-threads fixes are registry
+    // based. The HKLM writes always fail without elevation, which would demand
+    // admin access on every launch.
+    if (IsPortableMode())
+        return "ok";
+
     BOOL bIsWOW64 = false;  // 64bit OS
     IsWow64Process(GetCurrentProcess(), &bIsWOW64);
     uint    uiHKLMFlags = bIsWOW64 ? KEY_WOW64_64KEY : 0;
