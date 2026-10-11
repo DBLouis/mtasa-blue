@@ -797,6 +797,23 @@ static const SString DoUserAssistedSearch() noexcept
 ///////////////////////////////////////////////////////////////
 ePathResult GetGamePath(SString& strOutResult, bool bFindIfMissing)
 {
+    // Portable override: a file named gta_sa_path.txt next to the launcher exe,
+    // containing the path of the GTA: San Andreas installation
+    {
+        SString strOverrideContents;
+        if (FileLoad(PathJoin(GetLaunchPath(), "gta_sa_path.txt"), strOverrideContents))
+        {
+            SString strOverride = strOverrideContents.TrimEnd("\r\n").TrimEnd(" ");
+            if (FileExists(PathJoin(strOverride, MTA_GTA_KNOWN_FILE_NAME)))
+            {
+                strOutResult = strOverride;
+                WriteDebugEvent(SString("GetGamePath: Using portable override '%s'", *strOutResult));
+                return GAME_PATH_OK;
+            }
+            WriteDebugEvent(SString("GetGamePath: Portable override invalid: '%s'", *strOverride));
+        }
+    }
+
     // Registry places to look
     std::vector<SString> pathList;
 

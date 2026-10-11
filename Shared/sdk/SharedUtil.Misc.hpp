@@ -522,6 +522,17 @@ SString SharedUtil::GetMTASABaseDir()
         }
         if (strInstallRoot.empty())
         {
+            // Portable builds: prefer the launch directory when it is a usable install root.
+            // Lets MTA run from any directory without registry setup.
+            const SString strLaunchDir = GetLaunchPath();
+            if (IsUsableMtasaInstallRoot(strLaunchDir) && !IsTemporaryUpdateLaunchPath(strLaunchDir))
+            {
+                strInstallRoot = strLaunchDir;
+                strInstallRootSource = "launch directory";
+            }
+        }
+        if (strInstallRoot.empty())
+        {
             // Read each registry view independently and apply install-root validation per view, so a
             // stale or temp-path value in one view cannot shadow a usable real install root in
             // another. Order: 64-bit view, 32-bit view, default view.
