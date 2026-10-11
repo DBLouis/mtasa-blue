@@ -1858,7 +1858,9 @@ int LaunchGame(SString strCmdLine)
 
     SetDllDirectory(PathJoin(strMTASAPath, "mta"));
 
-    if (!CheckService(CHECK_SERVICE_PRE_CREATE) && !IsUserAdmin())
+    // Portable mode: CheckService always fails without an installer, so skip the
+    // admin elevation request it would trigger.
+    if (!IsPortableMode() && !CheckService(CHECK_SERVICE_PRE_CREATE) && !IsUserAdmin())
     {
         RelaunchAsAdmin(strCmdLine, _("Fix configuration issue"));
         ExitProcess(EXIT_OK);
@@ -2320,6 +2322,12 @@ int LaunchGame(SString strCmdLine)
 //////////////////////////////////////////////////////////
 void HandleOnQuitCommand()
 {
+    // Portable mode: OnQuitCommand lives in HKLM, which a portable install cannot
+    // write. The clear in LaunchGame fails silently, so a stale value (e.g. "restart"
+    // from a previous install) would relaunch MTA on every game exit.
+    if (IsPortableMode())
+        return;
+
     const SString strMTASAPath = GetMTASAPath();
 
     if (!ValidatePath(strMTASAPath))

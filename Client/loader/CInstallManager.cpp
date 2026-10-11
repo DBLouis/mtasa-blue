@@ -1746,6 +1746,12 @@ SString CInstallManager::_ProcessLangFileChecks()
 //////////////////////////////////////////////////////////
 SString CInstallManager::_ProcessServiceChecks()
 {
+    // Portable mode does not use the install service. CheckService is install/registry
+    // based, and the loader copy always fails without an installer, which would demand
+    // admin access on every launch.
+    if (IsPortableMode())
+        return "ok";
+
     if (!CheckService(CHECK_SERVICE_PRE_GAME))
     {
         if (!IsNativeArm64Host() && !IsUserAdmin())
