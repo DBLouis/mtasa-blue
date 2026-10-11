@@ -569,7 +569,7 @@ void CGame::DoPulse()
     if (m_pMasterServerAnnouncer)
         m_pMasterServerAnnouncer->Pulse();
 
-    if (m_pHqComms)
+    if (m_pHqComms && m_pMainConfig->IsHqCommsEnabled())
         m_pHqComms->Pulse();
 
     CLOCK_CALL1(m_pFunctionUseLogger->Pulse(););
@@ -1009,6 +1009,8 @@ bool CGame::Start(int iArgumentCount, char* szArguments[])
     m_pASE = new ASE(m_pMainConfig, m_pPlayerManager, static_cast<int>(usServerPort), strServerIPList);
     if (m_pMainConfig->GetSerialVerificationEnabled())
         m_pASE->SetRuleValue("SerialVerification", "yes");
+    if (m_pMainConfig->IsInsecureModeEnabled())
+        m_pASE->SetRuleValue("InsecureMode", "yes");
 
     // Set the Rules loaded from config
     for (const auto& [key, value] : m_pMainConfig->GetRulesForASE())
@@ -1065,6 +1067,14 @@ bool CGame::Start(int iArgumentCount, char* szArguments[])
         if (m_pMainConfig->GetOwnerEmailAddressList().empty())
         {
             CLogger::LogPrintf("WARNING: <owner_email_address> not set\n");
+        }
+
+        // Insecure mode
+        if (m_pMainConfig->IsInsecureModeEnabled())
+        {
+            CLogger::LogPrint(
+                "WARNING: Insecure mode is ENABLED. All client security checks and serial validation are DISABLED. Only use on private "
+                "servers where all players are trusted.\n");
         }
     }
 
@@ -1849,9 +1859,9 @@ void CGame::Packet_PlayerJoinData(CPlayerJoinDataPacket& Packet)
         SString strIP = pPlayer->GetSourceIP();
         SString strIPAndSerial("IP: %s  Serial: %s  Version: %s", strIP.c_str(), strSerial.c_str(), strPlayerVersion.c_str());
 
-        // Prevent player from connecting if serial is invalid
+        // Prevent player from connecting if serial is invalid (skipped in insecure mode)
         const std::regex serialRegex("^[A-F0-9]{32}$");
-        if (!std::regex_match(strSerial, serialRegex))
+        if (!m_pMainConfig->IsInsecureModeEnabled() && !std::regex_match(strSerial, serialRegex))
         {
             // Tell the console
             CLogger::LogPrintf("CONNECT: %s failed to connect (Invalid serial) (%s)\n", szNick, strIPAndSerial.c_str());
@@ -1861,8 +1871,8 @@ void CGame::Packet_PlayerJoinData(CPlayerJoinDataPacket& Packet)
             return;
         }
 
-        // Check if another player is using the same serial
-        if (m_pMainConfig->IsCheckDuplicateSerialsEnabled() && m_pPlayerManager->GetBySerial(strSerial))
+        // Check if another player is using the same serial (skipped in insecure mode)
+        if (!m_pMainConfig->IsInsecureModeEnabled() && m_pMainConfig->IsCheckDuplicateSerialsEnabled() && m_pPlayerManager->GetBySerial(strSerial))
         {
             // Tell the console
             CLogger::LogPrintf("CONNECT: %s failed to connect (Serial already in use) (%s)\n", szNick, strIPAndSerial.c_str());
@@ -4212,8 +4222,8 @@ void CGame::Packet_PlayerTransgression(CPlayerTransgressionPacket& Packet)
     CPlayer* pPlayer = Packet.GetSourcePlayer();
     if (pPlayer)
     {
-        // If ac# not disabled on this server, do a kick
-        if (!g_pGame->GetConfig()->IsDisableAC(SString("%d", Packet.m_uiLevel)))
+        // Never kick in insecure mode; otherwise kick if ac# not disabled on this server
+        if (!g_pGame->GetConfig()->IsInsecureModeEnabled() && !g_pGame->GetConfig()->IsDisableAC(SString("%d", Packet.m_uiLevel)))
         {
             CStaticFunctionDefinitions::KickPlayer(pPlayer, NULL, Packet.m_strMessage);
         }

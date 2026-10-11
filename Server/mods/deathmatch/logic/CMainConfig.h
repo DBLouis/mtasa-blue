@@ -130,6 +130,8 @@ public:
     bool                              IsElementDataWhitelisted() const { return m_elementDataWhitelisted; }
     bool                              IsCheckDuplicateSerialsEnabled() const noexcept { return m_checkDuplicateSerials; }
     bool                              IsCheckResourceClientFilesEnabled() const noexcept { return m_checkResourceClientFiles != 0; }
+    bool                              IsInsecureModeEnabled() const noexcept { return m_bInsecureMode; }
+    bool                              IsHqCommsEnabled() const noexcept { return m_bHqCommsEnabled; }
 
     SString GetSetting(const SString& configSetting);
     bool    GetSetting(const SString& configSetting, SString& strValue);
@@ -238,6 +240,8 @@ private:
     bool                       m_elementDataWhitelisted;
     bool                       m_checkDuplicateSerials;
     int                        m_checkResourceClientFiles;
+    bool                       m_bInsecureMode;
+    bool                       m_bHqCommsEnabled;
     int                        m_voicePacketsInterval{};
     int                        m_maxVoicePacketsPerInterval{};
     int                        m_maxVoiceBufferSize{};

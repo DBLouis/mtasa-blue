@@ -990,6 +990,12 @@ void CVersionUpdater::RunProgram(EUpdaterProgramType strProgramName)
     assert(IsMainThread());
     OutputDebugLine(SString("[Updater] RunProgram %d", strProgramName));
 
+    // Do not contact MTA servers when offline mode is enabled
+    bool bOfflineMode = false;
+    g_pCore->GetCVars()->Get("offline_mode", bOfflineMode);
+    if (bOfflineMode)
+        return;
+
     // Stop any running program
     while (shared.m_CurrentProgram != EUpdaterProgramType::None)
     {

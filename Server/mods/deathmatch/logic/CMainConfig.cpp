@@ -83,6 +83,8 @@ CMainConfig::CMainConfig(CConsole* pConsole) : CXMLConfig(NULL)
     m_bSyncMapElementData = true;
     m_elementDataWhitelisted = false;
     m_checkDuplicateSerials = true;
+    m_bInsecureMode = false;
+    m_bHqCommsEnabled = true;
 }
 
 bool CMainConfig::Load()
@@ -294,6 +296,12 @@ bool CMainConfig::Load()
     int iHideAC = 0;
     GetInteger(m_pRootNode, "hideac", iHideAC);
 
+    // insecure - Disables all client security checks and serial validation (trusted private servers only)
+    GetBoolean(m_pRootNode, "insecure", m_bInsecureMode);
+
+    // hqcomms - Communication with MTA HQ (min client version updates, blocked file lists, crash dumps)
+    GetBoolean(m_pRootNode, "hqcomms", m_bHqCommsEnabled);
+
     {
         std::set<SString> disableACMap;
         std::set<SString> enableSDMap;
@@ -334,6 +342,17 @@ bool CMainConfig::Load()
             MapSet(m_TransientSettings, "enablesd", strEnableSD);
         }
 
+        // Insecure mode disables every anti-cheat/special detection
+        if (m_bInsecureMode)
+        {
+            enableSDMap.clear();
+            for (int i = 1; i <= 64; i++)
+            {
+                MapInsert(disableACMap, SString("%d", i));
+                MapInsert(m_DisableComboACMap, SString("%d", i));
+            }
+        }
+
         CArgMap argMap;
         for (std::set<SString>::iterator it = m_DisableComboACMap.begin(); it != m_DisableComboACMap.end(); ++it)
             argMap.Set(*it, "");
@@ -348,6 +367,10 @@ bool CMainConfig::Load()
         for (std::set<SString>::iterator it = enableSDMap.begin(); it != enableSDMap.end(); ++it)
             argMap.Set(*it, "");
         SString strEnableSDMap = argMap.ToString();
+
+        // Insecure mode also disables client file verification
+        if (m_bInsecureMode)
+            m_iEnableClientChecks = 0;
 
         g_pNetServer->SetChecks(strDisableComboACMap, strDisableACMap, strEnableSDMap, m_iEnableClientChecks, iHideAC != 0, strImgMods);
     }
