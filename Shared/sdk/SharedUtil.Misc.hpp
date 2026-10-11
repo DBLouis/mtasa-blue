@@ -593,6 +593,31 @@ SString SharedUtil::CalcMTASAPath(const SString& strPath)
 }
 
 //
+// Returns true if portable mode is active.
+// A file named portable.txt in the install root keeps all data local to the MTA
+// directory instead of ProgramData.
+//
+bool SharedUtil::IsPortableMode()
+{
+    static bool bCached = false;
+    static bool bResult = false;
+    if (bCached)
+        return bResult;
+
+    // Re-entrancy guard: install root resolution can reach back here via
+    // AddReportLog -> GetMTADataPath before the install root is cached
+    static bool bResolving = false;
+    if (bResolving)
+        return false;
+
+    bResolving = true;
+    bResult = FileExists(CalcMTASAPath("portable.txt"));
+    bCached = true;
+    bResolving = false;
+    return bResult;
+}
+
+//
 // Returns true if current process is GTA (i.e not MTA process)
 //
 bool SharedUtil::IsGTAProcess()

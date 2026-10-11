@@ -138,6 +138,12 @@ namespace SharedUtil
     //
     SString CalcMTASAPath(const SString& strPath);
 
+    //
+    // Returns true if portable mode is active
+    // A file named portable.txt in the install root keeps all data local to the MTA directory
+    //
+    bool IsPortableMode();
+
     // Returns true if current process is GTA (i.e not MTA process)
     bool IsGTAProcess();
 

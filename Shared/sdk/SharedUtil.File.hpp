@@ -655,11 +655,16 @@ SString SharedUtil::GetSystemTempPath()
 
 SString SharedUtil::GetMTADataPath()
 {
+    // Portable builds: keep data local to the install instead of ProgramData
+    if (IsPortableMode())
+        return PathJoin(GetMTASABaseDir(), "data", GetMajorVersionString());
     return PathJoin(GetSystemCommonAppDataPath(), GetProductCommonDataDir(), GetMajorVersionString());
 }
 
 SString SharedUtil::GetMTADataPathCommon()
 {
+    if (IsPortableMode())
+        return PathJoin(GetMTASABaseDir(), "data", "Common");
     return PathJoin(GetSystemCommonAppDataPath(), GetProductCommonDataDir(), "Common");
 }
 
@@ -809,8 +814,8 @@ SString SharedUtil::GetDriveNameWithNotEnoughSpace(uint uiResourcesPathMinMB, ui
     if (GetPathFreeSpaceMB(GetMTASABaseDir()) < uiResourcesPathMinMB)
         return GetPathDriveName(GetMTASABaseDir());
 
-    if (GetPathFreeSpaceMB(GetSystemCommonAppDataPath()) < uiDataPathMinMB)
-        return GetPathDriveName(GetSystemCommonAppDataPath());
+    if (GetPathFreeSpaceMB(GetMTADataPath()) < uiDataPathMinMB)
+        return GetPathDriveName(GetMTADataPath());
     return "";
 }
 

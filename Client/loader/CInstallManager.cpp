@@ -1512,7 +1512,13 @@ SString CInstallManager::_ProcessLayoutChecks()
         SString strMTADataPath = i ? GetMTADataPathCommon() : GetMTADataPath();
 
         if (!DirectoryExists(strMTADataPath))
-            ShowLayoutError("[Data directory not present]");  // Can't find directory
+        {
+            // Portable mode: data dirs live under the install root and are created on demand
+            if (!IsPortableMode())
+                ShowLayoutError("[Data directory not present]");  // Can't find directory
+
+            MakeSureDirExists(strMTADataPath + "/");
+        }
 
         SString strTestFilePath = PathJoin(strMTADataPath, "testdir", "testfile.txt");
 
@@ -1527,25 +1533,29 @@ SString CInstallManager::_ProcessLayoutChecks()
         RemoveDirectory(ExtractPath(strTestFilePath));
     }
 
-#if MTASA_VERSION_TYPE != VERSION_TYPE_CUSTOM
-    // Check reg key exists
+    // Portable mode does not use the registry for install state
+    if (!IsPortableMode())
     {
-        if (GetRegistryValue("", "Last Install Location").empty())
-            ShowLayoutError("[Registry key not present]");  // Can't find reg key
-    }
+#if MTASA_VERSION_TYPE != VERSION_TYPE_CUSTOM
+        // Check reg key exists
+        {
+            if (GetRegistryValue("", "Last Install Location").empty())
+                ShowLayoutError("[Registry key not present]");  // Can't find reg key
+        }
 #endif
 
-    // Check reg key writable
-    {
-        RemoveRegistryKey("testkeypath");
+        // Check reg key writable
+        {
+            RemoveRegistryKey("testkeypath");
 
-        SString strValue = GetTimeString(true, true);
-        SetRegistryValue("testkeypath", "testname", strValue);
-        SString strValueCheck = GetRegistryValue("testkeypath", "testname");
-        if (strValueCheck != strValue)
-            ShowLayoutError("[Registry key not writable]");  // Can't write reg key
+            SString strValue = GetTimeString(true, true);
+            SetRegistryValue("testkeypath", "testname", strValue);
+            SString strValueCheck = GetRegistryValue("testkeypath", "testname");
+            if (strValueCheck != strValue)
+                ShowLayoutError("[Registry key not writable]");  // Can't write reg key
 
-        RemoveRegistryKey("testkeypath");
+            RemoveRegistryKey("testkeypath");
+        }
     }
 
     // Check install dir writable
